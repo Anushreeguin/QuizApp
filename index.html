@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz App</title>
+  <link rel="stylesheet" href="../static//style.css">
+</head>
+<body>
+  <div id="quiz-container">
+    <div class="quiz_header">
+      <h1>Quiz App</h1>
+      <h3> by team 10</h3>
+    </div>
+    <div id="question-container">
+      <p id="question-text"></p>
+      <ul id="options-list"></ul>
+    </div>
+    <div id="feedback"></div>
+    <button id="next-button" disabled>Next</button>
+    <p id="score-tracker"></p>
+  </div>
+  <script>
+    let currentIndex = 0;
+    let score = 0;
+
+    const questionText = document.getElementById("question-text");
+    const optionsList = document.getElementById("options-list");
+    const feedback = document.getElementById("feedback");
+    const nextButton = document.getElementById("next-button");
+    const scoreTracker = document.getElementById("score-tracker");
+
+    function loadQuestion() {
+      fetch(`/get-question?index=${currentIndex}&score=${score}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.end) {
+            endQuiz(data.score);
+          } else {
+            displayQuestion(data);
+          }
+        });
+    }
+
+    // Display the question and options
+    function displayQuestion(data) {
+      questionText.textContent = data.question;
+      optionsList.innerHTML = "";
+      feedback.textContent = "";
+      nextButton.disabled = true;
+
+      data.options.forEach((option, index) => {
+        const li = document.createElement("li");
+        li.textContent = option;
+        li.addEventListener("click", () => handleOptionClick(option, data.index));
+        optionsList.appendChild(li);
+      });
+
+      scoreTracker.textContent = `Score: ${score}/${currentIndex}`;
+    }
+
+    function handleOptionClick(selectedOption, questionIndex) {
+      fetch("/check-answer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          index: questionIndex,
+          selected: selectedOption
+        })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.correct) {
+            feedback.textContent = "Correct!";
+            feedback.style.color = "green";
+            score++;
+          } else {
+            feedback.textContent = `Incorrect. The correct answer is: ${data.correct_answer}`;
+            feedback.style.color = "red";
+          }
+
+          nextButton.disabled = false;
+          disableOptions();
+        });
+    }
+
+    function disableOptions() {
+      const options = optionsList.querySelectorAll("li");
+      options.forEach(option => {
+        option.style.pointerEvents = "none";
+        option.style.opacity = "0.6";
+      });
+    }
+
+    nextButton.addEventListener("click", () => {
+      currentIndex++;
+      loadQuestion();
+    });
+
+    function endQuiz(finalScore) {
+      questionText.textContent = "Quiz Completed!";
+      optionsList.innerHTML = "";
+      feedback.textContent = `Your final score is: ${finalScore}/${questions.length}`;
+      nextButton.style.display = "none";
+      scoreTracker.textContent = "";
+    }
+
+    loadQuestion();
+  </script>
+</body>
+</html>
